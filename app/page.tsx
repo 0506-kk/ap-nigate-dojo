@@ -651,6 +651,7 @@ const backupKeys = ["ap-study-progress", "ap-understanding-progress-v1", "ap-stu
 const modeKeys: ModeKey[] = ["study", "quiz", "scheduled", "weak", "review", "mastered", "unseen", "special"];
 const reviewIntervals = [1, 3, 7, 14, 30] as const;
 const priorityRetentionMax = 30;
+const confidentRetentionBonus = 15;
 const legacyTermMerges: Record<string, string> = {
   "ppm-problem-child": "ppm",
   "primary-db": "replication",
@@ -1699,7 +1700,7 @@ export default function Home() {
     const result = choiceId === card.id ? "correct" : "wrong";
     const mistakenChoice = result === "wrong" ? terms.find((item) => item.id === choiceId) : undefined;
     const previousRecord = progress[card.id] ?? { correct: 0, wrong: 0 };
-    const confidenceAdjustment = mode === "scheduled" ? quizUnsure ? -12 : quizConfident ? 8 : 0 : 0;
+    const confidenceAdjustment = mode === "scheduled" ? quizUnsure ? -12 : quizConfident ? confidentRetentionBonus : 0 : 0;
     const nextRetention = Math.max(0, Math.min(100, retention + confidenceAdjustment + (result === "correct" ? 15 : -20)));
     const answeredRecord = {
       ...previousRecord,
@@ -1765,7 +1766,7 @@ export default function Home() {
       return;
     }
     const previousRecord = progress[card.id] ?? { correct: 0, wrong: 0 };
-    const nextRetention = Math.min(100, retention + 8);
+    const nextRetention = Math.min(100, retention + confidentRetentionBonus);
     const confidentRecord = {
       ...previousRecord,
       correct: previousRecord.correct ?? 0,
@@ -2114,7 +2115,7 @@ export default function Home() {
                 <h3>{questionCopy.quizText}</h3>
               </div>
               <div className="quizConfidence" role="group" aria-label="回答への自信">
-                <button className={`quizConfidentButton ${quizConfident ? "selected" : ""}`} onClick={markQuizConfident} disabled={Boolean(quizResult) || quizUnsure || quizConfident} aria-pressed={quizConfident}>◎ 自信あり {quizConfident && <span>定着度 +8</span>}</button>
+                <button className={`quizConfidentButton ${quizConfident ? "selected" : ""}`} onClick={markQuizConfident} disabled={Boolean(quizResult) || quizUnsure || quizConfident} aria-pressed={quizConfident}>◎ 自信あり {quizConfident && <span>定着度 +{confidentRetentionBonus}</span>}</button>
                 <button className={`quizUnsureButton ${quizUnsure ? "selected" : ""}`} onClick={markQuizUnsure} disabled={Boolean(quizResult) || quizUnsure || quizConfident} aria-pressed={quizUnsure}>△ 自信なし {quizUnsure && <span>定着度 −12</span>}</button>
               </div>
               <div className="choiceGrid" role="group" aria-label="選択肢">

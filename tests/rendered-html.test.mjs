@@ -580,3 +580,12 @@ test("keeps follow-up question text as large as the main question", async () => 
   assert.match(mobileCss, /\.followUpCard > h3 \{ font-size: 20px;/);
   assert.match(mobileCss, /\.followUpSituation \{[^}]*font-size: 15px;/);
 });
+
+test("adds fifteen retention points for the confident action", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+
+  assert.match(page, /const confidentRetentionBonus = 15;/);
+  assert.match(page, /quizConfident \? confidentRetentionBonus : 0/);
+  assert.match(page, /retention \+ confidentRetentionBonus/);
+  assert.match(page, /定着度 \+\{confidentRetentionBonus\}/);
+});
