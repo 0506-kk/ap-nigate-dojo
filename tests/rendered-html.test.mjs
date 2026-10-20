@@ -589,3 +589,33 @@ test("adds fifteen retention points for the confident action", async () => {
   assert.match(page, /retention \+ confidentRetentionBonus/);
   assert.match(page, /定着度 \+\{confidentRetentionBonus\}/);
 });
+
+test("applies the reviewed 244-term exclusion once without deleting saved settings", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const disabledSource = await readFile(new URL("../app/defaultDisabledTerms.ts", import.meta.url), "utf8");
+  const disabledIds = [...disabledSource.matchAll(/^\s+"([^"]+)",$/gm)].map((match) => match[1]);
+  const termCategories = new Map([...page.matchAll(/\{ id: "([^"]+)", term: "[^"]+", category: "([^"]+)"/g)]
+    .map((match) => [match[1], match[2]]));
+
+  assert.equal(termCategories.size, 613);
+  assert.equal(disabledIds.length, 244);
+  assert.equal(new Set(disabledIds).size, 244);
+  assert.equal(termCategories.size - disabledIds.length, 369);
+  disabledIds.forEach((id) => assert.ok(termCategories.has(id), `unknown disabled term: ${id}`));
+
+  const categoryCounts = Object.fromEntries(["セキュリティ", "ネットワーク", "データベース", "マネジメント", "ストラテジ", "テクノロジ"]
+    .map((category) => [category, disabledIds.filter((id) => termCategories.get(id) === category).length]));
+  assert.deepEqual(categoryCounts, {
+    セキュリティ: 35,
+    ネットワーク: 23,
+    データベース: 58,
+    マネジメント: 21,
+    ストラテジ: 35,
+    テクノロジ: 72,
+  });
+
+  assert.match(page, /const reviewedDisabledMigrationKey = "ap-study-reviewed-disabled-2026-10-20"/);
+  assert.match(page, /const backupKeys = \[[^\n]+reviewedDisabledMigrationKey/);
+  assert.match(page, /savedDisabledIds = applyReviewedDisabledIds\(savedDisabledIds\)/);
+  assert.match(page, /return \[\.\.\.new Set\(\[\.\.\.migrateDisabledIds\(ids\), \.\.\.defaultDisabledTermIds\]\)\]/);
+});

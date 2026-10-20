@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import UnderstandingDojo from "./UnderstandingDojo";
+import { defaultDisabledTermIds } from "./defaultDisabledTerms";
 
 type Category = "セキュリティ" | "データベース" | "ネットワーク" | "マネジメント" | "ストラテジ" | "テクノロジ";
 type Term = {
@@ -647,7 +648,8 @@ const retentionResetKey = "ap-study-retention-reset-2026-08-27";
 const collectionStorageKey = "ap-study-collections-v1";
 const disabledStorageKey = "ap-study-disabled-ids-v1";
 const spacedReviewMigrationKey = "ap-study-spaced-review-migration-v1";
-const backupKeys = ["ap-study-progress", "ap-understanding-progress-v1", "ap-study-round", "ap-study-priority-round", "ap-study-mode-stats", "ap-study-question-stats-v1", collectionStorageKey, disabledStorageKey, retentionResetKey, spacedReviewMigrationKey] as const;
+const reviewedDisabledMigrationKey = "ap-study-reviewed-disabled-2026-10-20";
+const backupKeys = ["ap-study-progress", "ap-understanding-progress-v1", "ap-study-round", "ap-study-priority-round", "ap-study-mode-stats", "ap-study-question-stats-v1", collectionStorageKey, disabledStorageKey, retentionResetKey, spacedReviewMigrationKey, reviewedDisabledMigrationKey] as const;
 const modeKeys: ModeKey[] = ["study", "quiz", "scheduled", "weak", "review", "mastered", "unseen", "special"];
 const reviewIntervals = [1, 3, 7, 14, 30] as const;
 const priorityRetentionMax = 30;
@@ -799,6 +801,10 @@ function migrateDisabledIds(ids: string[]) {
     return [targetId, ...(legacyTermCopies[targetId] ?? [])];
   });
   return [...new Set(migrated.filter((id) => terms.some((item) => item.id === id)))];
+}
+
+function applyReviewedDisabledIds(ids: string[]) {
+  return [...new Set([...migrateDisabledIds(ids), ...defaultDisabledTermIds])];
 }
 
 function getCollection(item: Term, overrides: CollectionOverrides): Collection {
@@ -1335,9 +1341,14 @@ export default function Home() {
       const parsed = JSON.parse(localStorage.getItem(disabledStorageKey) ?? "[]");
       if (Array.isArray(parsed)) {
         savedDisabledIds = migrateDisabledIds(parsed.filter((id): id is string => typeof id === "string"));
-        localStorage.setItem(disabledStorageKey, JSON.stringify(savedDisabledIds));
       }
     } catch { /* 破損した設定は出題中として扱う */ }
+    if (localStorage.getItem(reviewedDisabledMigrationKey) !== "done") {
+      // 既存の停止設定は残したまま、全項目レビューで除外した244語を一度だけ追加する。
+      savedDisabledIds = applyReviewedDisabledIds(savedDisabledIds);
+      localStorage.setItem(reviewedDisabledMigrationKey, "done");
+    }
+    localStorage.setItem(disabledStorageKey, JSON.stringify(savedDisabledIds));
     setDisabledIds(savedDisabledIds);
     const saved = localStorage.getItem("ap-study-progress");
     let savedProgress = migrateProgressRecords(saved ? JSON.parse(saved) as Progress : {});
