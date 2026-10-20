@@ -64,7 +64,7 @@ test("keeps the understanding-dojo question set structured and scenario based", 
     }
   });
 
-  assert.deepEqual(ids, [
+  assert.deepEqual(ids.slice(0, 37), [
     "web-defense-waf",
     "transaction-non-repeatable-read",
     "evm-schedule-cost-status",
@@ -103,26 +103,87 @@ test("keeps the understanding-dojo question set structured and scenario based", 
     "default-gateway-off-subnet",
     "arp-same-lan-mac-resolution",
   ]);
+  assert.deepEqual(ids.slice(37), [
+    "number-base-conversion",
+    "twos-complement-negative-value",
+    "logic-circuit-truth-table",
+    "karnaugh-map-simplification",
+    "probability-independent-failures",
+    "permutation-combination-selection",
+    "expected-value-decision",
+    "binary-search-logarithmic-growth",
+    "stack-queue-processing-order",
+    "cache-hit-effective-time",
+    "lru-page-replacement",
+    "raid-capacity-fault-tolerance",
+    "semaphore-critical-section",
+    "failure-safe-soft-behavior",
+    "equivalence-boundary-test-design",
+    "statement-branch-coverage",
+    "swot-cross-analysis",
+    "ppm-business-portfolio",
+    "pest-3c-analysis-selection",
+    "five-forces-entry-barrier",
+    "bsc-kgi-kpi-cascade",
+    "break-even-volume",
+    "roi-roe-roa-selection",
+    "npv-investment-judgment",
+    "scm-supply-chain-optimization",
+    "data-lake-raw-data",
+    "cloud-service-model-selection",
+    "contract-dispatch-direction",
+    "isolation-level-read-committed",
+    "recovery-rollforward-log",
+    "acid-atomic-transfer",
+    "sql-groupby-having-filter",
+    "left-join-include-unmatched",
+    "functional-dependency-normal-forms",
+    "er-many-to-many-association",
+    "sql-exists-correlated-subquery",
+    "incident-problem-management",
+    "change-release-configuration-management",
+    "sla-service-targets",
+    "evm-eac-forecast",
+    "pert-three-point-estimate",
+    "risk-response-transfer-avoidance",
+    "standby-recovery-levels",
+  ]);
+  assert.equal(ids.length, 80);
+  assert.equal(new Set(ids).size, 80);
   assert.match(data, /category: "セキュリティ"/);
   assert.match(data, /category: "データベース"/);
   assert.match(data, /category: "ネットワーク"/);
   assert.match(data, /category: "マネジメント"/);
   assert.match(data, /category: "ストラテジ"/);
-  assert.equal((data.match(/^\s+followUp: \{/gm) ?? []).length, 37);
-  assert.equal((data.match(/^\s+correctIndex: \d,/gm) ?? []).length, 74);
-  assert.equal((data.match(/^\s+choices: \[/gm) ?? []).length, 74);
-  assert.equal((data.match(/^\s+skill: "/gm) ?? []).length, 74);
-  assert.equal((data.match(/^\s+conditions: \[/gm) ?? []).length, 74);
-  assert.equal((data.match(/^\s+clues: \[/gm) ?? []).length, 74);
-  assert.equal((data.match(/^\s+comparison: \[/gm) ?? []).length, 74);
+  assert.equal((data.match(/^\s+followUp: \{/gm) ?? []).length, 80);
+  assert.equal((data.match(/^\s+correctIndex: \d,/gm) ?? []).length, 160);
+  assert.equal((data.match(/^\s+choices: \[/gm) ?? []).length, 160);
+  assert.equal((data.match(/^\s+skill: "/gm) ?? []).length, 160);
+  assert.equal((data.match(/^\s+conditions: \[/gm) ?? []).length, 160);
+  assert.equal((data.match(/^\s+clues: \[/gm) ?? []).length, 160);
+  assert.equal((data.match(/^\s+comparison: \[/gm) ?? []).length, 160);
   assert.ok(questionArray, "understanding question array is missing");
+  const categoryCounts = {};
+  const objectiveKeys = new Set();
+  const answerPairs = {};
   for (const element of questionArray.elements) {
     assert.ok(ts.isObjectLiteralExpression(element), "question must be an object");
     const id = textValue(property(element, "id"));
+    const category = textValue(property(element, "category"));
+    const theme = textValue(property(element, "theme"));
+    const skill = textValue(property(element, "skill"));
     const mainChoices = textArray(property(element, "choices"));
     const mainCorrectIndex = Number(property(element, "correctIndex")?.getText(sourceFile));
     const followUp = property(element, "followUp");
+    categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
+    const objectiveKey = `${theme}::${skill}`;
+    assert.ok(!objectiveKeys.has(objectiveKey), `${id}: duplicate theme and skill`);
+    objectiveKeys.add(objectiveKey);
+    for (const field of ["id", "category", "theme", "skill", "situation", "question", "explanation", "keyPoint"]) {
+      assert.ok(textValue(property(element, field)).trim(), `${id}: empty main ${field}`);
+    }
     assert.equal(mainChoices.length, 4, `${id}: main question must have four choices`);
+    assert.equal(new Set(mainChoices).size, 4, `${id}: duplicate main choices`);
     assert.ok(Number.isInteger(mainCorrectIndex) && mainCorrectIndex >= 0 && mainCorrectIndex < 4, `${id}: invalid main correctIndex`);
     const mainPrompt = [textValue(property(element, "situation")), ...textArray(property(element, "conditions")), textValue(property(element, "question"))].join(" ");
     assert.ok(!mainPrompt.includes(mainChoices[mainCorrectIndex]), `${id}: main prompt exposes the correct answer`);
@@ -131,11 +192,45 @@ test("keeps the understanding-dojo question set structured and scenario based", 
     const followUpCorrectIndex = Number(property(followUp, "correctIndex")?.getText(sourceFile));
     const followUpPrompt = [textValue(property(followUp, "situation")), ...textArray(property(followUp, "conditions")), textValue(property(followUp, "question")), ...followUpChoices].join(" ");
     assert.equal(followUpChoices.length, 4, `${id}: follow-up must have four choices`);
+    assert.equal(new Set(followUpChoices).size, 4, `${id}: duplicate follow-up choices`);
     assert.ok(Number.isInteger(followUpCorrectIndex) && followUpCorrectIndex >= 0 && followUpCorrectIndex < 4, `${id}: invalid follow-up correctIndex`);
     assert.notDeepEqual([...followUpChoices].sort(), [...mainChoices].sort(), `${id}: follow-up reuses the main choice set`);
     assert.ok(!followUpPrompt.includes(mainChoices[mainCorrectIndex]), `${id}: follow-up exposes the main correct answer`);
     assert.notEqual(textValue(property(element, "skill")), textValue(property(followUp, "skill")), `${id}: follow-up must reverse or deepen the reasoning direction`);
+    answerPairs[id] = [mainChoices[mainCorrectIndex], followUpChoices[followUpCorrectIndex]];
   }
+  assert.deepEqual(categoryCounts, { セキュリティ: 14, データベース: 13, マネジメント: 12, ストラテジ: 14, ネットワーク: 11, テクノロジ: 16 });
+  assert.deepEqual(Object.fromEntries([
+    "number-base-conversion",
+    "twos-complement-negative-value",
+    "logic-circuit-truth-table",
+    "probability-independent-failures",
+    "permutation-combination-selection",
+    "expected-value-decision",
+    "binary-search-logarithmic-growth",
+    "cache-hit-effective-time",
+    "lru-page-replacement",
+    "break-even-volume",
+    "roi-roe-roa-selection",
+    "npv-investment-judgment",
+    "evm-eac-forecast",
+    "pert-three-point-estimate",
+  ].map((id) => [id, answerPairs[id]])), {
+    "number-base-conversion": ["00101101", "47"],
+    "twos-complement-negative-value": ["11101110", "−10"],
+    "logic-circuit-truth-table": ["X=0、Y=0", "排他的論理和"],
+    "probability-independent-failures": ["0.01（1%）", "99%"],
+    "permutation-combination-selection": ["56通り", "20通り"],
+    "expected-value-decision": ["52万円", "20%"],
+    "binary-search-logarithmic-growth": ["10段階程度", "約10回増える"],
+    "cache-hit-effective-time": ["28ns", "19ns"],
+    "lru-page-replacement": ["ページ2", "ページ1"],
+    "break-even-volume": ["1,500個", "100万円"],
+    "roi-roe-roa-selection": ["15%", "20%"],
+    "npv-investment-judgment": ["NPVは10百万円で、投資候補とする", "2.5年"],
+    "evm-eac-forecast": ["1,250万円", "1,100万円"],
+    "pert-three-point-estimate": ["期待値7日", "1日"],
+  });
   assert.doesNotMatch(data, /question: "[^"]*(とは|違い)[^"]*"/);
   assert.match(data, /followUp\?: UnderstandingFollowUp/);
   assert.match(data, /skill: string/);
